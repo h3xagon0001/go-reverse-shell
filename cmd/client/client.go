@@ -2,31 +2,48 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net"
+	"time"
 )
 
 const addr string = "localhost:8888"
 
-var buf []byte
-
 func main() {
+	var conn net.Conn
+
+	for {
+		conn = nil
+		for conn == nil {
+			conn = dialServer(addr)
+			if conn == nil {
+				time.Sleep(5 * time.Second)
+			}
+		}
+		fmt.Printf("Host: %v\n", conn.LocalAddr().String())
+		readServer(conn)
+	}
+}
+
+func dialServer(addr string) (conn net.Conn) {
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
-		log.Fatalf("Dail error: %v", err)
+		fmt.Printf("Dail error: %v\n", err)
+		return nil
 	}
 
-	fmt.Printf("Host: %v\n", conn.LocalAddr().String())
+	return conn
+}
+
+func readServer(conn net.Conn) {
+	var buf []byte
 
 	for {
 		buf = make([]byte, 256)
 		_, err := conn.Read(buf)
 		if err != nil {
-			log.Fatalf("Read error: %v", err)
+			fmt.Printf("Read error: %v", err)
+			break
 		}
 		fmt.Printf("Msg: %s\n", buf)
 	}
-	// possible reconnection idea
-	// start the reader in a goroutine and have main do polling checks for connectivity
-	// if connection unavailable, stop goroutine and reconnect
 }
