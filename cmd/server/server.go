@@ -1,16 +1,26 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"log"
 	"net"
-	"bufio"
 	"os"
+	"strings"
 )
 
-const port string = ":8888"
+var port string = ":8888"
 
 func main() {
+	config := readConfig("server.cfg")
+	for _, kv := range config {
+		key, value := kv[0], kv[1]
+		switch key {
+		case "port":
+			port = value
+		}
+	}
+
 	ln := startServer(port)
 
 	conn, err := ln.Accept()
@@ -27,7 +37,7 @@ func startServer(port string) (ln net.Listener) {
 		log.Fatalf("Listen error: %v", err)
 	}
 
-	fmt.Println("Server started!")
+	fmt.Printf("Server started on port [%v]\n", port)
 	return ln
 }
 
@@ -48,4 +58,22 @@ func handleConnection(conn net.Conn) {
 
 		conn.Write([]byte(scanner.Text()))
 	}
+}
+
+func readConfig(name string) (config [][]string) {
+	data, err := os.ReadFile(name)
+	if err != nil {
+		log.Fatalf("read error: %v\n", err)
+	}
+
+	lines := strings.Split(strings.ReplaceAll(string(data), "\r", ""), "\n")
+
+	for _, line := range lines {
+		keyValuePair := strings.Split(line, "=")
+		if len(keyValuePair) == 2 {
+			config = append(config, keyValuePair)
+		}
+	}
+
+	return config
 }

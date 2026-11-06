@@ -2,14 +2,26 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net"
+	"os"
+	"strings"
 	"time"
 )
 
-const addr string = "localhost:8888"
+var addr string = "localhost:8888"
 
 func main() {
 	var conn net.Conn
+
+	config := readConfig("client.cfg")
+	for _, kv := range config {
+		key, value := kv[0], kv[1]
+		switch key {
+		case "addr":
+			addr = value
+		}	
+	}
 
 	for {
 		conn = nil
@@ -46,4 +58,22 @@ func readServer(conn net.Conn) {
 		}
 		fmt.Printf("Msg: %s\n", buf)
 	}
+}
+
+func readConfig(name string) (config [][]string) {
+	data, err := os.ReadFile(name)
+	if err != nil {
+		log.Fatalf("read error: %v\n", err)
+	}
+
+	lines := strings.Split(strings.ReplaceAll(string(data), "\r", ""), "\n")
+
+	for _, line := range lines {
+		keyValuePair := strings.Split(line, "=")
+		if len(keyValuePair) == 2 {
+			config = append(config, keyValuePair)
+		}
+	}
+
+	return config
 }
