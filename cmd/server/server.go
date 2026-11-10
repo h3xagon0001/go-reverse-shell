@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"bytes"
 )
 
 var port string = ":8888"
@@ -28,7 +29,7 @@ func main() {
 		log.Fatalf("Accept error: %v", err)
 	}
 
-	handleConnection(conn)
+	handleClient(conn)
 }
 
 func startServer(port string) (ln net.Listener) {
@@ -41,23 +42,55 @@ func startServer(port string) (ln net.Listener) {
 	return ln
 }
 
-func handleConnection(conn net.Conn) {
+func handleClient(conn net.Conn) {
 	var addr string = conn.RemoteAddr().String()
+	var buf []byte
 
-	fmt.Printf("Host connected: %v\n", addr)
+	fmt.Printf("\n    #### Host connected: %v ####\n\n", addr)
 
 	for {
-		fmt.Printf("%v> ", addr)
+		conn.Write([]byte("pwd"))
+
+		buf = make([]byte, 1024)
+		_, err := conn.Read(buf)
+		if err != nil {
+			log.Fatalf("Read error: %v", err)
+		}
+		buf = bytes.Trim(buf, "\x00")
+		fmt.Printf("%s>", buf)
 
 		scanner := bufio.NewScanner(os.Stdin)
 		scanner.Scan()
 
 		if err := scanner.Err(); err != nil {
-			fmt.Printf("Scanner error: %v\n", err)
+			log.Fatalf("Scanner error: %v\n", err)
 		}
 
-		conn.Write([]byte(scanner.Text()))
+		if scanner.Text() != "help" {
+			conn.Write([]byte(scanner.Text()))
+
+			buf = make([]byte, 1024)
+			_, err = conn.Read(buf)
+			if err != nil {
+				log.Fatalf("Read error: %v", err)
+			}
+			buf = bytes.Trim(buf, "\x00")
+			fmt.Printf("%s", buf)
+
+		} else {
+			printCmdList()
+		}
 	}
+}
+
+func printCmdList() {
+	fmt.Print(
+		"\n" +
+			"    help        Prints this help screen.\n" +
+			"    help        Prints this help screen.\n" +
+			"    help        Prints this help screen.\n" +
+			"    help        Prints this help screen.\n" +
+			"\n")
 }
 
 func readConfig(name string) (config [][]string) {

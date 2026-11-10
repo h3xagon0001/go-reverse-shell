@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"bytes"
 )
 
 var addr string = "localhost:8888"
@@ -32,7 +33,7 @@ func main() {
 			}
 		}
 		fmt.Printf("Host: %v\n", conn.LocalAddr().String())
-		readServer(conn)
+		handleServer(conn)
 	}
 }
 
@@ -46,17 +47,38 @@ func dialServer(addr string) (conn net.Conn) {
 	return conn
 }
 
-func readServer(conn net.Conn) {
+func handleServer(conn net.Conn) {
 	var buf []byte
 
 	for {
-		buf = make([]byte, 256)
+		buf = make([]byte, 1024)
 		_, err := conn.Read(buf)
 		if err != nil {
-			fmt.Printf("Read error: %v", err)
+			fmt.Printf("Read error: %v\n", err)
 			break
 		}
-		fmt.Printf("Msg: %s\n", buf)
+		buf = bytes.Trim(buf, "\x00")
+		conn.Write([]byte(runCommand(string(buf))))
+	}
+}
+
+func runCommand(cmd string) (output string) {
+	cleanCmd := strings.TrimSpace(cmd)
+	operation, args, _ := strings.Cut(cleanCmd, " ")
+
+	fmt.Printf("%v [%v]\n", operation, args)
+	fmt.Printf("%v %v\n", len(operation), len(args))
+	
+	switch operation {
+	case "pwd":
+		dir, err := os.Getwd()
+		if err != nil {
+			return err.Error()
+		}
+		return dir
+
+	default:
+		return (cleanCmd + " is not a valid command.\n")
 	}
 }
 
