@@ -1,13 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"net"
 	"os"
 	"strings"
 	"time"
-	"bytes"
 )
 
 var addr string = "localhost:8888"
@@ -21,7 +21,7 @@ func main() {
 		switch key {
 		case "addr":
 			addr = value
-		}	
+		}
 	}
 
 	for {
@@ -67,8 +67,7 @@ func runCommand(cmd string) (output string) {
 	operation, args, _ := strings.Cut(cleanCmd, " ")
 
 	fmt.Printf("%v [%v]\n", operation, args)
-	fmt.Printf("%v %v\n", len(operation), len(args))
-	
+
 	switch operation {
 	case "pwd":
 		dir, err := os.Getwd()
@@ -77,8 +76,30 @@ func runCommand(cmd string) (output string) {
 		}
 		return dir
 
+	case "ls":
+		fileList := ""
+		files, err := os.ReadDir(".")
+		if err != nil {
+			return err.Error()
+		}
+		for _, file := range files {
+			fileList += file.Name()
+			if file.IsDir() {
+				fileList += "\\"
+			}
+			fileList += "\n"
+		}
+		return fileList
+
+	case "cd":
+		err := os.Chdir(args)
+		if err != nil {
+			return err.Error()
+		}
+		return "Directory changed to " + runCommand("pwd")
+
 	default:
-		return (cleanCmd + " is not a valid command.\n")
+		return cleanCmd + " is not a valid command.\n"
 	}
 }
 

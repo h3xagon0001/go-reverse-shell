@@ -75,7 +75,7 @@ func handleClient(conn net.Conn) {
 				log.Fatalf("Read error: %v", err)
 			}
 			buf = bytes.Trim(buf, "\x00")
-			fmt.Printf("%s", buf)
+			fmt.Printf("%s\n", buf)
 
 		} else {
 			printCmdList()
@@ -87,7 +87,7 @@ func printCmdList() {
 	fmt.Print(
 		"\n" +
 			"    help        Prints this help screen.\n" +
-			"    help        Prints this help screen.\n" +
+			"    ls        Lists contents of the working directory.\n" +
 			"    help        Prints this help screen.\n" +
 			"    help        Prints this help screen.\n" +
 			"\n")
