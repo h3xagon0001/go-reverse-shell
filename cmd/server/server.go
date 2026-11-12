@@ -2,12 +2,12 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"log"
 	"net"
 	"os"
 	"strings"
-	"bytes"
 )
 
 var port string = ":8888"
@@ -66,31 +66,44 @@ func handleClient(conn net.Conn) {
 			log.Fatalf("Scanner error: %v\n", err)
 		}
 
-		if scanner.Text() != "help" {
-			conn.Write([]byte(scanner.Text()))
+		if scanner.Text() != "" {
+			if scanner.Text() != "help" {
+				conn.Write([]byte(scanner.Text()))
 
-			buf = make([]byte, 1024)
-			_, err = conn.Read(buf)
-			if err != nil {
-				log.Fatalf("Read error: %v", err)
+				buf = make([]byte, 1024)
+				_, err = conn.Read(buf)
+				if err != nil {
+					log.Fatalf("Read error: %v", err)
+				}
+				buf = bytes.Trim(buf, "\x00")
+				fmt.Printf("%s\n", buf)
+
+			} else {
+				printCmdList()
 			}
-			buf = bytes.Trim(buf, "\x00")
-			fmt.Printf("%s\n", buf)
-
-		} else {
-			printCmdList()
 		}
 	}
 }
 
 func printCmdList() {
-	fmt.Print(
-		"\n" +
-			"    help        Prints this help screen.\n" +
-			"    ls        Lists contents of the working directory.\n" +
-			"    help        Prints this help screen.\n" +
-			"    help        Prints this help screen.\n" +
-			"\n")
+	cmdList := [][]string{
+		{"help", "Displays this help screen."},
+		{"pwd", "Displays the working directory."},
+		{"ls", "Displays contents of the working directory."},
+		{"cd", "Changes the working directory, 'cd ..' to move up."},
+		{"cat", "Display contents of a file."},
+		{"ps", "Runs the specified powershell command."},
+		{"touch", "Creates a file with the specified filename."},
+		{"write", "Writes text to the specified file."},
+		{"display", "Writes text to the specified file and opens the file."},
+		{"remove", "Removes the specified file."},
+	}
+
+	fmt.Print("\n")
+	for _, cmd := range cmdList {
+		fmt.Printf("    %-12v%v\n", cmd[0], cmd[1])
+	}
+	fmt.Print("\n")
 }
 
 func readConfig(name string) (config [][]string) {
